@@ -1,0 +1,1 @@
+# TODO Steps for Fixing TypeScript baseUrl Deprecation\n\n1. [x] Edit app/tsconfig.app.json to add \"ignoreDeprecations\": \"6.0\" to compilerOptions\n2. [x] Verify TypeScript error is resolved (restart TS server in VSCode)\n3. [x] Test app build (`cd app && npm run build`)
