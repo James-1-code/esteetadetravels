@@ -1,0 +1,29 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@tailwind",
+      "description": "Load Tailwind CSS directives"
+    },
+    {
+      "name": "@apply",
+      "description": "Use Tailwind utilities in custom CSS"
+    },
+    {
+      "name": "@layer",
+      "description": "Specify Tailwind layers"
+    },
+    {
+      "name": "@variants",
+      "description": "Deprecated Tailwind variants (v2)"
+    },
+    {
+      "name": "@responsive",
+      "description": "Deprecated Tailwind responsive (v2)"
+    },
+    {
+      "name": "@screen",
+      "description": "Tailwind screen variants"
+    }
+  ]
+}
