@@ -4,6 +4,8 @@
     "noEmit": false,
     "composite": true,
     "baseUrl": ".",
+    "allowImportingTsExtensions": true,
+    "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"]
     }
