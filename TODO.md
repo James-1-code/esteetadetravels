@@ -1,11 +1,28 @@
-# GitHub Pages Deployment TODO
+# Vercel Deployment Plan
 
-## Steps (In Progress):
-- [x] Plan approved by user
-- [x] 1. Fresh build: cd app && npm run build
-- [x] 2. Copy app/dist/* to root/ (xcopy successful: index.html, assets/index-*.css/js)
-- [ ] 3. git add . & commit & push
-- [ ] 4. User: GitHub Settings > Pages > Source: master, / (root)
-- [ ] 5. Verify https://james-1-code.github.io/esteetadetravels
+**Frontend (app/) - Vercel-ready**:
+- [ ] 1. vercel login
+- [ ] 2. cd app && vercel --prod
+- [ ] 3. Update app/.env VITE_API_URL=your-backend.vercel.app/api
 
-Updated on: Step 2 complete - fresh assets copied to root/dist
+**Backend (backend/) - Serverless**:
+- [ ] 1. Create backend/vercel.json (below)
+- [ ] 2. cd backend && vercel --prod
+- [ ] 3. Set env vars (PG URL, JWT secret, etc.)
+
+**Backend vercel.json**:
+```
+{
+  "version": 2,
+  "builds": [
+    {"src": "src/index.js", "use": "@vercel/node"}
+  ],
+  "routes": [
+    {"src": "/api/(.*)", "dest": "src/index.js"}
+  ]
+}
+```
+
+Production URL from Vercel → update frontend .env → rebuild frontend.
+
+Backend env needed: DB_URL, JWT_SECRET, etc. List backend/.env vars?
