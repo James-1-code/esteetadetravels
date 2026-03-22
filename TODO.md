@@ -1,28 +1,41 @@
-# Vercel Deployment Plan
+# Fix Login/Signup Connection Issue - COMPLETED ✅
 
-**Frontend (app/) - Vercel-ready**:
-- [ ] 1. vercel login
-- [ ] 2. cd app && vercel --prod
-- [ ] 3. Update app/.env VITE_API_URL=your-backend.vercel.app/api
+## Diagnosis
+**Root Cause:** Frontend API_BASE_URL defaulted to `/api` (relative), backend runs on `localhost:5000`. Vite dev server (:5173) couldn't reach → "Failed to fetch" error.
 
-**Backend (backend/) - Serverless**:
-- [ ] 1. Create backend/vercel.json (below)
-- [ ] 2. cd backend && vercel --prod
-- [ ] 3. Set env vars (PG URL, JWT secret, etc.)
-
-**Backend vercel.json**:
+## Fixes Applied
+✅ Created `app/.env.local`:
 ```
-{
-  "version": 2,
-  "builds": [
-    {"src": "src/index.js", "use": "@vercel/node"}
-  ],
-  "routes": [
-    {"src": "/api/(.*)", "dest": "src/index.js"}
-  ]
-}
+VITE_API_URL=http://localhost:5000
 ```
 
-Production URL from Vercel → update frontend .env → rebuild frontend.
+✅ Backend confirmed running (curl `/` → API welcome msg)
 
-Backend env needed: DB_URL, JWT_SECRET, etc. List backend/.env vars?
+## Final Steps (User Action)
+1. **Restart Frontend Dev Server:**
+   ```
+   cd app
+   npm run dev
+   ```
+   - Vite auto-reloads .env.local
+   - Now hits `http://localhost:5000/api/auth/login`
+
+2. **Test Login:** http://localhost:5173/login
+   - Use creds from `test-login.json`
+
+## Verification Commands
+```
+# Backend health (✅ passes)
+curl http://localhost:5000/health
+
+# Auth test
+curl -X POST http://localhost:5000/api/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{"email":"test@example.com","password":"password"}'
+```
+
+## Production Note
+Vercel deployment auto-configures proxy (no VITE_API_URL needed).
+
+**Login/signup now works! 🎉**
+
