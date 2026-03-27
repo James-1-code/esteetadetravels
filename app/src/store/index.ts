@@ -112,7 +112,6 @@ export const useStore = create<AppState>()(
 
       login: (user, token) => {
         set({ user, token, isAuthenticated: true });
-        // Connect to socket after login
         socketService.connect(token);
         const welcomeNotification: Notification = {
           id: `notif-${Date.now()}`,
@@ -139,57 +138,36 @@ export const useStore = create<AppState>()(
       },
 
       setApplications: (applications) => set({ applications }),
-      addApplication: (application) =>
-        set((state) => ({
-          applications: [application, ...state.applications],
-        })),
-      updateApplication: (id, updates) =>
-        set((state) => ({
-          applications: state.applications.map((app) =>
-            app.id === id ? { ...app, ...updates } : app
-          ),
-        })),
+      addApplication: (application) => set((state) => ({ applications: [application, ...state.applications] })),
+      updateApplication: (id, updates) => set((state) => ({
+        applications: state.applications.map((app) =>
+          app.id === id ? { ...app, ...updates } : app
+        ),
+      })),
 
       setInvoices: (invoices) => set({ invoices }),
-      addInvoice: (invoice) =>
-        set((state) => ({ invoices: [invoice, ...state.invoices] })),
+      addInvoice: (invoice) => set((state) => ({ invoices: [invoice, ...state.invoices] })),
 
       setNotifications: (notifications) => set({ notifications }),
-      addNotification: (notification) =>
-        set((state) => ({ notifications: [notification, ...state.notifications] })),
+      addNotification: (notification) => set((state) => ({ notifications: [notification, ...state.notifications] })),
 
-      markNotificationRead: (id) =>
-        set((state) => ({
-          notifications: state.notifications.map((notif) =>
-            notif.id === id ? { ...notif, read: true } : notif
-          ),
-        })),
+      markNotificationRead: (id) => set((state) => ({
+        notifications: state.notifications.map((notif) =>
+          notif.id === id ? { ...notif, read: true } : notif
+        ),
+      })),
 
-      markAllNotificationsRead: () =>
-        set((state) => ({
-          notifications: state.notifications.map((notif) => ({ ...notif, read: true })),
-        })),
+      markAllNotificationsRead: () => set((state) => ({
+        notifications: state.notifications.map((notif) => ({ ...notif, read: true })),
+      })),
 
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
-      toggleDarkMode: () =>
-        set((state) => {
-          const newDarkMode = !state.darkMode;
-          if (typeof document !== 'undefined') {
-            document.documentElement.classList.toggle('dark', newDarkMode);
-          }
-          return { darkMode: newDarkMode };
-        }),
-      setDarkMode: (dark) => {
-        if (typeof document !== 'undefined') {
-          document.documentElement.classList.toggle('dark', dark);
-        }
-        set({ darkMode: dark });
-      },
+      toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+      setDarkMode: (dark) => set({ darkMode: dark }),
 
-      toggleNotifications: () =>
-        set((state) => ({ notificationsOpen: !state.notificationsOpen })),
+      toggleNotifications: () => set((state) => ({ notificationsOpen: !state.notificationsOpen })),
       setNotificationsOpen: (open) => set({ notificationsOpen: open }),
     }),
     {
@@ -203,4 +181,20 @@ export const useStore = create<AppState>()(
     }
   )
 );
+
+if (import.meta.env.DEV) {
+  const demoUser: User = {
+    id: 'demo-client-123',
+    email: 'demo@esteetade.com',
+    firstName: 'Demo',
+    lastName: 'Client',
+    role: 'client' as UserRole,
+    referralCode: 'DEMO2024',
+  };
+  const store = useStore.getState();
+  if (!store.user) {
+    store.login(demoUser, 'demo-token-local');
+    console.log('🧪 DEV MODE: Auto-logged in as demo client');
+  }
+}
 

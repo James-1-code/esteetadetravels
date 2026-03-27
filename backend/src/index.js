@@ -157,12 +157,16 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 // Create HTTP server
-const server = http.createServer(app);
-
-// Initialize Socket.io
-initializeSocket(server);
-
-server.listen(PORT, () => {
+// Vercel serverless - don't start HTTP server
+  if (process.env.VERCEL === '1') {
+    console.log('🧩 Vercel serverless mode - skipping HTTP server and socket.io');
+    return module.exports = app;
+  }
+  
+  // Local/Traditional server
+  const server = http.createServer(app);
+  initializeSocket(server);
+  server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║

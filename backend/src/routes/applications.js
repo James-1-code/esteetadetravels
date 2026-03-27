@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, pool } = require('../config/database');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { createApplicationValidator, updateApplicationValidator, paginationValidator, idParamValidator } = require('../middleware/validator');
 const { notifyApplicationUpdate, notifyUser } = require('../services/socket');
@@ -22,20 +22,30 @@ const generateInvoiceNumber = () => {
   return `INV-${year}-${random}`;
 };
 
-router.get('/', authenticate, paginationValidator, asyncHandler(async (req, res) => {
+router.get('/', optionalAuth, paginationValidator, asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status, search } = req.query;
   const offset = (page - 1) * limit;
   
-  let sql = `SELECT a.*, u.first_name as client_first_name, u.last_name as client_last_name, u.email as client_email, ag.first_name as agent_first_name, ag.last_name as agent_last_name FROM applications a JOIN users u ON a.client_id = u.id LEFT JOIN users ag ON a.agent_id = ag.id WHERE 1=1`;
+if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Please login to view your applications',
+    });
+  }
+  
+  // Log for debugging
+  console.log('User role:', req.user.role);
+  
+let sql = `SELECT a.*, COALESCE(u.first_name, '') as client_first_name, COALESCE(u.last_name, '') as client_last_name, COALESCE(u.email, '') as client_email, COALESCE(ag.first_name, '') as agent_first_name, COALESCE(ag.last_name, '') as agent_last_name FROM applications a LEFT JOIN users u ON a.client_id = u.id LEFT JOIN users ag ON a.agent_id = ag.id WHERE 1=1`;
   
   const params = [];
   let paramIndex = 1;
   
-  if (req.user.role === 'client') {
+if (req.user.role === 'client') {
     sql += ` AND a.client_id = $${paramIndex}`;
     params.push(req.user.id);
     paramIndex++;
-  } else if (req.user.role === 'agent') {
+  } else if (req.user?.role === 'agent') {
     sql += ` AND (a.agent_id = $${paramIndex} OR a.client_id IN (SELECT id FROM users WHERE referred_by = $${paramIndex}))`;
     params.push(req.user.id);
     paramIndex++;
@@ -87,7 +97,7 @@ router.get('/', authenticate, paginationValidator, asyncHandler(async (req, res)
   });
 }));
 
-router.get('/:id', authenticate, idParamValidator, asyncHandler(async (req, res) => {
+router.get('/:id', optionalAuth, idParamValidator, asyncHandler(async (req, res) => {
   const { id } = req.params;
   
   const result = await query(`SELECT a.*, u.first_name as client_first_name, u.last_name as client_last_name, u.email as client_email, ag.first_name as agent_first_name, ag.last_name as agent_last_name FROM applications a JOIN users u ON a.client_id = u.id LEFT JOIN users ag ON a.agent_id = ag.id WHERE a.id = $1`, [id]);
@@ -246,7 +256,14 @@ router.delete('/:id', authenticate, authorize('admin'), idParamValidator, asyncH
   res.json({ success: true, message: 'Application deleted successfully' });
 }));
 
-router.get('/stats/overview', authenticate, asyncHandler(async (req, res) => {
+router.get('/stats/overview', optionalAuth, asyncHandler(async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Please login to view stats',
+    });
+  }
+  
   let sql = `SELECT COUNT(*) as total, COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending, COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed, COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected, SUM(amount) as total_revenue FROM applications`;
   
   const params = [];

@@ -53,7 +53,7 @@ export function PaystackFixed({
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'}/payments/initialize`,
+        `${import.meta.env.VITE_API_URL || '/api'}/payments/initialize`,
         {
           method: 'POST',
           headers: {
@@ -79,7 +79,7 @@ export function PaystackFixed({
         callback: async (res: { reference: string }) => {
           try {
             const verifyResponse = await fetch(
-              `${import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'}/payments/verify/${res.reference}`,
+              `${import.meta.env.VITE_API_URL || '/api'}/payments/verify/${res.reference}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`,

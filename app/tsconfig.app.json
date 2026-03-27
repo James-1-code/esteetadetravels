@@ -5,6 +5,7 @@
     "composite": true,
     "baseUrl": ".",
     "allowImportingTsExtensions": true,
+    "allowSyntheticDefaultImports": true,
     "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"]

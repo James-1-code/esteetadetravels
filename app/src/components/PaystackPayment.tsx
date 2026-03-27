@@ -45,7 +45,7 @@ export function PaystackPayment({
     try {
       // Initialize payment on backend
       const initializeResponse = await fetch(
-        `${import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'}/payments/initialize`,
+        `${import.meta.env.VITE_API_URL || '/api'}/payments/initialize`,
         {
           method: 'POST',
           headers: {
@@ -75,7 +75,7 @@ export function PaystackPayment({
         callback: function(response: { reference: string }) {
           // Verify payment
           fetch(
-            `${import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'}/payments/verify/${response.reference}`,
+            `${import.meta.env.VITE_API_URL || '/api'}/payments/verify/${response.reference}`,
             {
               method: 'GET',
               headers: {

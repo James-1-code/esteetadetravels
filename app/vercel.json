@@ -1,5 +1,10 @@
 {
+  "framework": "vite",
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://default-cyan.vercel.app/api/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

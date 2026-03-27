@@ -9,57 +9,11 @@ const { query } = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 
-// Check if Wasabi is configured
-const isWasabiConfigured = () => {
-  return process.env.WASABI_ACCESS_KEY && process.env.WASABI_SECRET_KEY;
-};
-
-let uploadFile, getSignedDownloadUrl, deleteFile;
-
-if (isWasabiConfigured()) {
-  const wasabi = require('../services/wasabi');
-  uploadFile = wasabi.uploadFile;
-  getSignedDownloadUrl = wasabi.getSignedDownloadUrl;
-  deleteFile = wasabi.deleteFile;
-} else {
-  // Local storage fallback
-  const uploadsDir = path.join(__dirname, '../../uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  
-  const localStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const userDir = path.join(uploadsDir, req.user?.id || 'anonymous');
-      if (!fs.existsSync(userDir)) {
-        fs.mkdirSync(userDir, { recursive: true });
-      }
-      cb(null, userDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueName = `${uuidv4()}-${file.originalname}`;
-      cb(null, uniqueName);
-    }
-  });
-
-  const localMulter = multer({ storage: localStorage });
-  
-  uploadFile = async (fileBuffer, fileName, contentType) => {
-    // This won't be called in local fallback
-    return { key: fileName, url: `/uploads/${fileName}` };
-  };
-  
-  getSignedDownloadUrl = async (key, expiresIn = 3600) => {
-    return `/uploads/${key}`;
-  };
-  
-  deleteFile = async (key) => {
-    const filePath = path.join(uploadsDir, key);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  };
-}
+// Force Wasabi mode for Vercel (Wasabi env vars configured)
+const wasabi = require('../services/wasabi');
+const uploadFile = wasabi.uploadFile;
+const getSignedDownloadUrl = wasabi.getSignedDownloadUrl;
+const deleteFile = wasabi.deleteFile;
 
 
 /*
@@ -68,29 +22,7 @@ if (isWasabiConfigured()) {
 |--------------------------------------------------------------------------
 */
 
-let storage;
-
-if (isWasabiConfigured()) {
-  storage = multer.memoryStorage();
-} else {
-  const uploadsDir = path.join(__dirname, '../../uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const userDir = path.join(uploadsDir, req.user?.id || 'anonymous');
-      if (!fs.existsSync(userDir)) {
-        fs.mkdirSync(userDir, { recursive: true });
-      }
-      cb(null, userDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueName = `${uuidv4()}-${file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
-      cb(null, uniqueName);
-    }
-  });
-}
+let storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
@@ -175,11 +107,9 @@ router.post(
       let fileUrl;
       let savedPath;
 
-      if (isWasabiConfigured()) {
-        /*
-        |--------------------------------------------------------------------------
-        | Upload to Wasabi
-        |--------------------------------------------------------------------------
+      /*
+        | Upload to Wasabi (forced)
+        |---
         */
         const wasabiResult = await uploadFile(
           file.buffer,
@@ -188,15 +118,6 @@ router.post(
         );
         fileUrl = await getSignedDownloadUrl(wasabiResult.key, 3600);
         savedPath = wasabiResult.key;
-      } else {
-        /*
-        |--------------------------------------------------------------------------
-        | Store locally (file is already saved by multer diskStorage)
-        |--------------------------------------------------------------------------
-        */
-        savedPath = `${req.user.id}/${file.filename}`;
-        fileUrl = `/uploads/${savedPath}`;
-      }
 
       /*
       |--------------------------------------------------------------------------
@@ -204,10 +125,10 @@ router.post(
       |--------------------------------------------------------------------------
       */
 
-      const result = await query(
+const result = await query(
         `
         INSERT INTO documents
-        (application_id, user_id, filename, original_name, mime_type, size, path)
+        ("application_id", "user_id", filename, original_name, mime_type, size, path)
         VALUES ($1,$2,$3,$4,$5,$6,$7)
         RETURNING *
         `,
@@ -279,12 +200,7 @@ router.get(
         let url = null;
 
         try {
-          if (isWasabiConfigured()) {
-            url = await getSignedDownloadUrl(file.path, 3600);
-          } else {
-            // Local file URL
-            url = `/uploads/${file.path}`;
-          }
+          url = await getSignedDownloadUrl(file.path, 3600);
         } catch (err) {
           console.error('URL generation error', err);
         }
@@ -398,13 +314,7 @@ router.get(
     |--------------------------------------------------------------------------
     */
 
-    let downloadUrl;
-    if (isWasabiConfigured()) {
-      downloadUrl = await getSignedDownloadUrl(doc.path, 3600);
-    } else {
-      // For local storage, return the file path
-      downloadUrl = `/uploads/${doc.path}`;
-    }
+    let downloadUrl = await getSignedDownloadUrl(doc.path, 3600);
 
     res.json({
       success: true,

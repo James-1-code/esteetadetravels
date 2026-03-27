@@ -1,9 +1,9 @@
 // src/services/socket.ts
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { toast } from 'sonner';
-import type { ApiResponse } from '@/types/api';
+// import type { ApiResponse } from '@/types/api';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 interface Application {
   id: string;
@@ -21,7 +21,7 @@ interface Payment {
 type EventCallback = (data: unknown) => void;
 
 class SocketService {
-  private socket: Socket | null = null;
+  socket: any = null;
   private listeners: Map<string, Set<EventCallback>> = new Map();
   private applicationUpdateCallbacks: Set<(app: Application) => void> = new Set();
   private isConnecting: boolean = false;
@@ -47,16 +47,20 @@ class SocketService {
       this.socket = null;
     }
 
-    this.socket = io(SOCKET_URL, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 3, // Reduced from 5
-      reconnectionDelay: 2000, // Increased from 1000
-      reconnectionDelayMax: 5000,
-      timeout: 20000, // Increased from 10000
-      forceNew: false, // Reuse existing connection
-    });
+    if (import.meta.env.DEV) {
+      this.socket = io(SOCKET_URL.replace('/api', ''), {
+        auth: { token },
+        transports: ['polling', 'websocket'],
+        reconnection: true,
+        reconnectionAttempts: 3,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        forceNew: false,
+      });
+    } else {
+      console.warn('Socket.IO disabled in production (Vercel serverless)');
+    }
 
     this.socket.on('connect', () => {
       console.log('🔌 Socket connected successfully');
@@ -140,7 +144,7 @@ class SocketService {
   }
 
   // Register callback for application updates (for real-time UI updates)
-  onApplicationUpdate(callback: (application: Application) => void) {
+  onApplicationUpdate(callback: any) {
     this.applicationUpdateCallbacks.add(callback);
     console.log('📱 Application update callback registered, total:', this.applicationUpdateCallbacks.size);
   }

@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { AuthLoader } from '@/components/AuthLoader';
+import { Loader2 } from 'lucide-react';
 import { useStore } from '@/store';
+
+import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 
 // Layouts
@@ -29,7 +32,22 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // Protected Route Component
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
-  const { isAuthenticated, user } = useStore();
+  const { isAuthenticated, user, token } = useStore();
+  
+  // DEV: Bypass auth for development
+  if (import.meta.env.DEV) {
+    return <>{children}</>;
+  }
+  
+  // Loading state while auth initializes
+  if (token !== null && token !== undefined) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin mr-2 text-[#0a9396]" />
+        <span>Checking authentication...</span>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -57,8 +75,9 @@ function App() {
   return (
     <Router>
       <Toaster position="top-right" richColors />
+      
       <Routes>
-        {/* Public Routes */}
+        {/* Public Routes - NO AuthLoader */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -66,10 +85,12 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
         
-        {/* Dashboard Routes - All Roles */}
+        {/* Protected Routes - WITH AuthLoader */}
         <Route element={
           <ProtectedRoute>
-            <DashboardLayout />
+            <AuthLoader>
+              <DashboardLayout />
+            </AuthLoader>
           </ProtectedRoute>
         }>
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -84,7 +105,9 @@ function App() {
         {/* Admin Routes */}
         <Route element={
           <ProtectedRoute allowedRoles={['admin']}>
-            <DashboardLayout />
+            <AuthLoader>
+              <DashboardLayout />
+            </AuthLoader>
           </ProtectedRoute>
         }>
           <Route path="/admin/users" element={<AdminUsersPage />} />
@@ -97,7 +120,9 @@ function App() {
         {/* Agent Routes */}
         <Route element={
           <ProtectedRoute allowedRoles={['agent', 'admin']}>
-            <DashboardLayout />
+            <AuthLoader>
+              <DashboardLayout />
+            </AuthLoader>
           </ProtectedRoute>
         }>
           <Route path="/agent/clients" element={<AgentClientsPage />} />

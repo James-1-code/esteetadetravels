@@ -86,6 +86,13 @@ export function DashboardPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const token = useStore.getState().token;
+      if (!user || !token) {
+        console.warn('Dashboard: No user/token, skipping API fetch');
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         // Fetch applications
@@ -127,7 +134,7 @@ export function DashboardPage() {
     };
 
     fetchData();
-  }, [setApplications, setInvoices, setNotifications]);
+  }, [user, setApplications, setInvoices, setNotifications]);
   
   const totalApplications = applications.length;
   const pendingApplications = applications.filter((a) => a.status === 'pending').length;

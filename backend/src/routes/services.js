@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 // Get all service prices
-router.get('/prices', authenticate, asyncHandler(async (req, res) => {
+router.get('/prices', optionalAuth, asyncHandler(async (req, res) => {
   const { service_type, country } = req.query;
   
   let sql = 'SELECT * FROM service_prices WHERE is_active = true';
@@ -44,7 +44,7 @@ router.get('/prices', authenticate, asyncHandler(async (req, res) => {
 }));
 
 // Get price for a specific service (with country/type)
-router.get('/prices/:serviceType', authenticate, asyncHandler(async (req, res) => {
+router.get('/prices/:serviceType', optionalAuth, asyncHandler(async (req, res) => {
   const { serviceType } = req.params;
   const { country, work_type, website_type } = req.query;
   
@@ -144,9 +144,9 @@ router.put('/prices/:serviceType', authenticate, authorize('admin'), asyncHandle
 }));
 
 // Get all website types
-router.get('/website-types', authenticate, asyncHandler(async (req, res) => {
+router.get('/website-types', optionalAuth, asyncHandler(async (req, res) => {
   const result = await query(
-    'SELECT * FROM website_types WHERE is_active = true ORDER BY base_price'
+'SELECT * FROM "website_types" WHERE is_active = true ORDER BY base_price'
   );
   
   res.json({
@@ -162,6 +162,9 @@ router.get('/website-types', authenticate, asyncHandler(async (req, res) => {
 
 // Create price request (for flight/hotel)
 router.post('/price-requests', authenticate, asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError('Authentication required', 401);
+  }
   const { application_id, service_type, details } = req.body;
   const clientId = req.user.id;
   
@@ -192,7 +195,10 @@ router.post('/price-requests', authenticate, asyncHandler(async (req, res) => {
 }));
 
 // Get price requests (for client - their own requests, for admin - all)
-router.get('/price-requests', authenticate, asyncHandler(async (req, res) => {
+router.get('/price-requests', optionalAuth, asyncHandler(async (req, res) => {
+  if (!req.user && req.user?.role !== 'admin') {
+    throw new AppError('Authentication required for price requests', 401);
+  }
   const { status, service_type } = req.query;
   
   let sql = `SELECT pr.*, u.first_name, u.last_name, u.email 

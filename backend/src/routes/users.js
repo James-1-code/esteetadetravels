@@ -109,10 +109,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     
-    const result = await query(
+  const result = await query(
       `SELECT u.*,
-              (SELECT COUNT(*) FROM applications WHERE client_id = u.id) as application_count,
-              (SELECT SUM(amount) FROM invoices WHERE client_id = u.id AND status = 'paid') as total_spent,
+              (SELECT COUNT(*) FROM applications WHERE "client_id" = u.id) as application_count,
+              (SELECT SUM(amount) FROM invoices WHERE "client_id" = u.id AND status = 'paid') as total_spent,
               referrer.first_name as referrer_first_name,
               referrer.last_name as referrer_last_name
        FROM users u

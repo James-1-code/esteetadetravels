@@ -1,6 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../middleware/auth');
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-for-vercel-change-after';
 
 let io = null;
 
@@ -8,7 +8,7 @@ let io = null;
 const initializeSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      origin: process.env.FRONTEND_URL || ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://127.0.0.1:5173"],
       methods: ['GET', 'POST'],
       credentials: true,
     },
