@@ -12,6 +12,7 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 const { initializeSocket } = require('./services/socket');
 
 // Import routes
+const apiRoutes = require('./routes/api');
 const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/applications');
 const userRoutes = require('./routes/users');
@@ -125,6 +126,17 @@ app.get('/health', (req, res) => {
 });
 
 // API routes - apply auth limiter to auth routes
+// API root endpoint (direct route for Vercel compatibility)
+app.get('/api', (req, res) => {
+  console.log('GET /api hit');
+  res.status(200).json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.use('/api', apiRoutes);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/users', userRoutes);

@@ -24,63 +24,143 @@ const verifyToken = (token) => {
 
 // Authentication middleware
 const authenticate = async (req, res, next) => {
+  console.log('🔐 Auth middleware called');
+  
   try {
-    const authHeader = req.headers.authorization;
+    // Safe header check
+    const authHeader = req?.headers?.authorization;
+    console.log('📡 Auth header:', !!authHeader ? 'present' : 'missing');
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || typeof authHeader !== 'string') {
+      console.log('❌ No auth header');
       return res.status(401).json({
         success: false,
-        message: 'Access denied. No token provided.',
+        message: 'Access denied. No token provided.'
       });
     }
     
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
-    
-    // Get user from database
-    const result = await query(
-      'SELECT id, email, first_name, last_name, role, referral_code, email_verified, admin_approved FROM users WHERE id = $1',
-      [decoded.id]
-    );
-    
-    if (result.rows.length === 0) {
+    if (!authHeader.startsWith('Bearer ')) {
+      console.log('❌ Invalid Bearer format:', authHeader.substring(0, 20) + '...');
       return res.status(401).json({
         success: false,
-        message: 'User not found.',
+        message: 'Access denied. Invalid token format.'
+      });
+    }
+    
+    const tokenParts = authHeader.split(' ');
+    if (tokenParts.length !== 2) {
+      console.log('❌ Invalid token parts');
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. Invalid token format.'
+      });
+    }
+    
+    const token = tokenParts[1];
+    if (!token || typeof token !== 'string' || token.length < 10) {
+      console.log('❌ Invalid token length');
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. Invalid token.'
+      });
+    }
+    
+    // Check JWT_SECRET
+    if (!JWT_SECRET) {
+      console.error('❌ JWT_SECRET missing');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error.'
+      });
+    }
+    
+    console.log('🔑 Verifying JWT...');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      console.log('✅ JWT decoded, user ID:', decoded.id);
+    } catch (jwtErr) {
+      console.log('❌ JWT verify failed:', jwtErr.name || jwtErr.message);
+      if (jwtErr.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token expired. Please login again.'
+        });
+      }
+      if (jwtErr.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token.'
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token.'
+      });
+    }
+    
+    if (!decoded || !decoded.id) {
+      console.log('❌ No user ID in token');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token.'
+      });
+    }
+    
+    // Safe DB query
+    console.log('📊 Fetching user from DB, ID:', decoded.id);
+    let result;
+    try {
+      result = await query(
+        'SELECT id, email, first_name, last_name, role, referral_code, email_verified, admin_approved, COALESCE(avatar_url, \'\') as avatar_url FROM users WHERE id = $1',
+        [decoded.id]
+      );
+    } catch (dbErr) {
+      console.error('❌ DB query failed:', dbErr.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication service unavailable.'
+      });
+    }
+    
+    if (!result || !result.rows || result.rows.length === 0) {
+      console.log('❌ User not found in DB');
+      return res.status(401).json({
+        success: false,
+        message: 'User not found.'
       });
     }
     
     const user = result.rows[0];
+    console.log('✅ User loaded:', user.id, user.email, user.role);
     
-    // Check if agent is approved
+    // Agent approval check
     if (user.role === 'agent' && !user.admin_approved) {
+      console.log('⏳ Agent pending approval');
       return res.status(403).json({
         success: false,
-        message: 'Your agent account is pending admin approval.',
+        message: 'Your agent account is pending admin approval.'
       });
     }
     
-    req.user = user;
+    // Set req.user safely
+    req.user = {
+      id: user.id,
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role,
+      avatar_url: user.avatar_url
+    };
+    
+    console.log('✅ Auth success, calling next()');
     next();
+    
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired. Please login again.',
-      });
-    }
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token.',
-      });
-    }
-    
-    console.error('Auth middleware error:', error);
-    return res.status(500).json({
+    console.error('💥 Unexpected auth error:', error.message || error);
+    return res.status(401).json({
       success: false,
-      message: 'Authentication error.',
+      message: 'Authentication failed.'
     });
   }
 };

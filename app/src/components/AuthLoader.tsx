@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useStore } from '@/store';
 import { authAPI } from '@/services/api';
-import { Loader2 } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
 
-export function AuthLoader({ children }: { children: React.ReactNode }) {
-  // DEV: Bypass auth validation for development
-  if (import.meta.env.DEV) {
-    return <>{children}</>;
-  }
-const { setUser, setToken, token } = useStore();
+interface Props {
+  children: React.ReactNode;
+}
+
+export function AuthLoader({ children }: Props) {
+  const { token, setUser, setToken } = useStore();
   const [loading, setLoading] = useState(true);
   const [validToken, setValidToken] = useState(false);
 
@@ -22,8 +22,8 @@ const { setUser, setToken, token } = useStore();
           return;
         }
 
-        const user = await authAPI.getMe();
-        setUser(user.data.user);
+        const userResponse = await authAPI.getMe();
+        setUser(userResponse.data.user);
         setValidToken(true);
       } catch (error) {
         console.error('Auth check failed:', error);
@@ -37,7 +37,7 @@ const { setUser, setToken, token } = useStore();
     };
 
     initAuth();
-  }, []);
+  }, [token, setUser, setToken]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -47,7 +47,6 @@ const { setUser, setToken, token } = useStore();
 
     return () => clearTimeout(timeoutId);
   }, []);
-
 
   if (loading) {
     return (
@@ -66,3 +65,4 @@ const { setUser, setToken, token } = useStore();
 
   return <>{children}</>;
 }
+

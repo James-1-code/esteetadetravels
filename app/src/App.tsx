@@ -1,12 +1,8 @@
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthLoader } from '@/components/AuthLoader';
 import { Loader2 } from 'lucide-react';
-import { useStore } from '@/store';
-
-import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
-
-// Layouts
+import { useStore } from '@/store';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
@@ -14,6 +10,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { ApplicationsPage } from '@/pages/dashboard/ApplicationsPage';
 import { NewApplicationPage } from '@/pages/dashboard/NewApplicationPage';
@@ -27,65 +25,135 @@ import { AdminPaymentsPage } from '@/pages/admin/AdminPaymentsPage';
 import { AdminServicePricingPage } from '@/pages/admin/AdminServicePricingPage';
 import { AdminPriceRequestsPage } from '@/pages/admin/AdminPriceRequestsPage';
 import { AgentClientsPage } from '@/pages/agent/AgentClientsPage';
-import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
-import { NotFoundPage } from '@/pages/NotFoundPage';
 
-// Protected Route Component
-function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
-  const { isAuthenticated, user, token } = useStore();
-  
-  // DEV: Bypass auth for development
-  if (import.meta.env.DEV) {
-    return <>{children}</>;
-  }
-  
-  // Loading state while auth initializes
-  if (token !== null && token !== undefined) {
+const AuthLoader = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { token, setUser, setToken } = useStore();
+
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      
+      let retries = 3;
+      let lastError = null;
+      
+      while (retries > 0) {
+        try {
+          console.log('🔄 Auth check attempt', 4 - retries);
+          const userResponse = await authAPI.getMe();
+          
+          if (userResponse.success && userResponse.data) {
+            setUser(userResponse.data);
+            console.log('✅ Auth check success');
+            setLoading(false);
+            return;
+          } else {
+            console.warn('⚠️ /me no success data');
+            break;
+          }
+        } catch (err: any) {
+          lastError = err;
+          console.warn('❌ Auth check failed:', err.message, '- retries left:', retries - 1);
+          retries--;
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+      
+      // Fallback: keep token/user from store, log error
+      console.warn('⚠️ All auth retries failed, using cached state:', !!useStore.getState().user);
+      setError('Could not verify session. Some features may be limited.');
+      setLoading(false);
+    };
+
+    checkAuth();
+
+    const timeout = setTimeout(() => {
+      console.log('⏰ Auth timeout, using cached state');
+      setLoading(false);
+    }, 8000);
+
+    return () => clearTimeout(timeout);
+  }, [token, setUser]);
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin mr-2 text-[#0a9396]" />
-        <span>Checking authentication...</span>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="text-center p-8">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-[#0a9396]" />
+          <span className="text-xl font-medium text-slate-600">Checking authentication...</span>
+        </div>
       </div>
     );
   }
-  
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="text-center p-8">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+          <a href="/login" className="bg-[#0a9396] text-white px-6 py-2 rounded-lg hover:bg-[#005f73] font-medium">
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
+  const { isAuthenticated, user } = useStore();
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
-  if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
+
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
-  
-  return <>{children}</>;
-}
 
-function App() {
+  return <>{children}</>;
+};
+
+const App: React.FC = () => {
   const { darkMode } = useStore();
-  
+
   useEffect(() => {
-    // Initialize dark mode from system preference or stored value
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
-  
+
   return (
     <Router>
       <Toaster position="top-right" richColors />
       
       <Routes>
-        {/* Public Routes - NO AuthLoader */}
+        {/* Public Routes */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
-        
-        {/* Protected Routes - WITH AuthLoader */}
+
+        {/* Dashboard Routes */}
         <Route element={
           <ProtectedRoute>
             <AuthLoader>
@@ -101,7 +169,7 @@ function App() {
           <Route path="/dashboard/profile" element={<ProfilePage />} />
           <Route path="/dashboard/price-requests" element={<PriceRequestsPage />} />
         </Route>
-        
+
         {/* Admin Routes */}
         <Route element={
           <ProtectedRoute allowedRoles={['admin']}>
@@ -116,7 +184,7 @@ function App() {
           <Route path="/admin/service-pricing" element={<AdminServicePricingPage />} />
           <Route path="/admin/price-requests" element={<AdminPriceRequestsPage />} />
         </Route>
-        
+
         {/* Agent Routes */}
         <Route element={
           <ProtectedRoute allowedRoles={['agent', 'admin']}>
@@ -127,13 +195,12 @@ function App() {
         }>
           <Route path="/agent/clients" element={<AgentClientsPage />} />
         </Route>
-        
-        {/* 404 */}
+
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );
-}
+};
 
 export default App;
 

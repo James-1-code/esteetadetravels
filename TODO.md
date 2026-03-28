@@ -1,8 +1,12 @@
-# Fix Live Login/Signup Issues
+# API Root Route Fix - Progress Tracker
 
-## Steps:
-- [x] 1. Edit backend/src/routes/auth.js: Fix password verification bypass
-- [x] 2. Seed admin user: node backend/neon-seed-admin.js
-- [x] 3. Test live login endpoint
-- [x] 4. Verify frontend integration
-- [x] 5. Complete
+## Plan Steps:
+- [x] Step 1: Add direct app.get('/api') route in backend/src/index.js BEFORE app.use('/api', apiRoutes) ✅
+- [ ] Step 2: Test locally (optional: cd backend && npm start, curl http://localhost:5000/api)
+- [ ] Step 3: Deploy to Vercel and verify https://default-cyan.vercel.app/api returns 200 JSON
+- [ ] Step 4: Check Vercel logs for "GET /api hit"
+- [ ] Step 5: Verify other routes (/health, /api/auth/me) still work
+- [ ] COMPLETE
+
+**Key Change**: backend/src/index.js now has direct \`app.get('/api')\` before router mounting for Vercel serverless compatibility.
+

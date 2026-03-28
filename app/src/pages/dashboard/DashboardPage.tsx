@@ -43,13 +43,37 @@ const staggerContainer = {
 };
 
 export function DashboardPage() {
-  const { user, setApplications, setInvoices, setNotifications, updateApplication, applications: storeApps } = useStore();
+  const { user, setApplications, setInvoices, setNotifications, updateApplication, applications: storeApps, isAuthenticated } = useStore();
   
   const [applications, setLocalApplications] = useState<any[]>([]);
   const [invoices, setLocalInvoices] = useState<any[]>([]);
   const [notifications, setLocalNotifications] = useState<any[]>([]);
   const [chartData, setChartData] = useState<{ name: string; applications: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Fallback if no user
+  if (!user && !isLoading) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+          <FileText className="w-8 h-8 text-slate-500" />
+        </div>
+        <h2 className="text-xl font-semibold text-slate-900">Session expired</h2>
+        <p className="text-slate-500 max-w-md">Please refresh the page or log in again to continue.</p>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-6 py-2 bg-[#0a9396] text-white rounded-lg hover:bg-[#005f73] font-medium transition-colors"
+          >
+            Refresh
+          </button>
+          <a href="/login" className="px-6 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors">
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   // Handle real-time application updates
   const handleApplicationUpdate = useCallback((updatedApp: any) => {

@@ -430,8 +430,8 @@ router.get(
   '/me',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await query(
-      'SELECT id, email, first_name, last_name, phone, role, referral_code, avatar_url, address, bio, created_at FROM users WHERE id = $1',
+const result = await query(
+      'SELECT id, email, first_name, last_name, phone, role, referral_code, COALESCE(avatar_url, \'\') as avatar_url, address, bio, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     
@@ -469,7 +469,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const { firstName, lastName, phone, address, bio, avatar } = req.body;
     
-    const result = await query(
+const result = await query(
       `UPDATE users 
        SET first_name = COALESCE($1, first_name),
            last_name = COALESCE($2, last_name),
@@ -479,7 +479,7 @@ router.put(
            avatar_url = COALESCE($6, avatar_url),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $7
-       RETURNING id, email, first_name, last_name, phone, role, referral_code, avatar_url, address, bio`,
+       RETURNING id, email, first_name, last_name, phone, role, referral_code, COALESCE(avatar_url, \'\') as avatar_url, address, bio`,
       [firstName, lastName, phone, address, bio, avatar, req.user.id]
     );
     
