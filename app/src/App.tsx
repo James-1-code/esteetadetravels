@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Loader2 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import { useStore } from '@/store';
+import { AuthLoader } from '@/components/AuthLoader';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
@@ -32,44 +33,54 @@ const AuthLoader = () => {
   const { token, setUser, setToken } = useStore();
 
   React.useEffect(() => {
-    const checkAuth = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-      
-      let retries = 3;
-      let lastError = null;
-      
-      while (retries > 0) {
-        try {
-          console.log('🔄 Auth check attempt', 4 - retries);
-          const userResponse = await authAPI.getMe();
-          
-          if (userResponse.success && userResponse.data) {
-            setUser(userResponse.data);
-            console.log('✅ Auth check success');
-            setLoading(false);
-            return;
-          } else {
-            console.warn('⚠️ /me no success data');
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          console.warn('❌ Auth check failed:', err.message, '- retries left:', retries - 1);
-          retries--;
-          if (retries > 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+  const checkAuth = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    
+    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+    
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        console.log('🔄 Auth check attempt', 4 - retries);
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const userResponse = await response.json();
+        
+        if (userResponse.success && userResponse.data) {
+          setUser(userResponse.data);
+          console.log('✅ Auth check success');
+          setLoading(false);
+          return;
+        } else {
+          console.warn('⚠️ /me no success data:', userResponse);
+          break;
+        }
+      } catch (err: any) {
+        console.warn('❌ Auth check failed:', err.message || err, '- retries left:', retries - 1);
+        retries--;
+        if (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-      
-      // Fallback: keep token/user from store, log error
-      console.warn('⚠️ All auth retries failed, using cached state:', !!useStore.getState().user);
-      setError('Could not verify session. Some features may be limited.');
-      setLoading(false);
-    };
+    }
+    
+    console.warn('⚠️ All retries failed, using cached state');
+    setError('Could not verify session. Some features may be limited. Go to Login.');
+    setLoading(false);
+  };
 
     checkAuth();
 
